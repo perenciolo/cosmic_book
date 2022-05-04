@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  app:
+    user: $UID:$GID # don't forget to export GID and UID in .bash_profile (export UID=${UID} && export GID=${GID})
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5005:80"
+    volumes:
+      - ./src:/src
+      - ./tests:/tests
+    environment:
+      - DB_HOST=postgres
+      - API_HOST=app
+      - API_PORT=5005
+      - DB_NAME=app
+      - DB_USER=postgres
+      - DB_PASSWORD=abc123
+    depends_on:
+      - postgres
+
+
+  postgres:
+    image: postgres:10-alpine
+    environment:
+      - POSTGRES_DB=app
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=abc123
+    ports:
+      - "54321:5432"
