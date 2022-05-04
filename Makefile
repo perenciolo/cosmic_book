@@ -3,6 +3,8 @@
 
 export COMPOSE_DOCKER_CLI_BUILD=1
 export DOCKER_BUILDKIT=1
+export UID=${id -u}
+export GID=${id -g}
 
 all: down build up test
 
