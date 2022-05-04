@@ -31,4 +31,4 @@ logs:
 	docker-compose logs app | tail -100
 
 black:
-	black -l 86 $$(find * -name '*.py')
+	docker-compose run --rm --no-deps app sh -c "black -l 86 --include ./**/*.py"
