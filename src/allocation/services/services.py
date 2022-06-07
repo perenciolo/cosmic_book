@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import date
 
-from allocation.domain import model, OrderLine
+from allocation.domain import model, OrderLine, Batch, Sku, Quantity, Reference
 from allocation.adapters import AbstractRepository
 
 
@@ -14,25 +14,18 @@ def is_valid_sku(sku, batches):
 
 
 def add_batch(
-    ref: str,
-    sku: str,
-    qty: int,
+    ref: Reference,
+    sku: Sku,
+    qty: Quantity,
     eta: Optional[date],
     repo: AbstractRepository,
     session,
 ) -> None:
-    repo.add(model.Batch(ref, sku, qty, eta))
+    repo.add(batch=model.Batch(ref, sku, qty, eta))
     session.commit()
 
 
-def allocate(
-    orderid: str,
-    sku: str,
-    qty: int,
-    repo: AbstractRepository,
-    session,
-) -> str:
-    line = OrderLine(orderid, sku, qty)
+def allocate(line: OrderLine, repo: AbstractRepository, session) -> str:
     batches = repo.list()
 
     if not is_valid_sku(line.sku, batches):
@@ -40,4 +33,16 @@ def allocate(
 
     batchref = model.allocate(line, batches)
     session.commit()
+
     return batchref
+
+
+def deallocate(
+    line: OrderLine, repo: AbstractRepository, session, reference: model.Reference
+) -> None:
+    batch = repo.get(reference=reference)
+
+    if not is_valid_sku(line.sku, [batch]):
+        raise InvalidSku(f"Invalid sku {line.sku}")
+
+    return model.deallocate(line, batch)

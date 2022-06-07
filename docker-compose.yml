@@ -14,7 +14,7 @@ services:
     environment:
       - DB_HOST=postgres
       - API_HOST=app
-      - API_PORT=5005
+      - API_PORT=80
       - DB_NAME=app
       - DB_USER=postgres
       - DB_PASSWORD=abc123

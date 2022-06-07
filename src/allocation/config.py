@@ -15,7 +15,7 @@ def get_api_url():
     host = os.environ.get("API_HOST", "localhost")
     port = 5005 if host == "localhost" else os.environ.get("API_PORT", 80)
 
-    if port is 80:
+    if port == 80:
         return f"http://{host}"
 
     return f"http://{host}:{port}"
