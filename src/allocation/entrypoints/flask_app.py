@@ -1,70 +1,36 @@
-import json
-from datetime import datetime, date
-from flask import Flask, request
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from datetime import datetime
+from flask import Flask, jsonify, request
 
-from allocation import config
 from allocation.domain import model
-from allocation.adapters import orm, repository
-from allocation import services
+from allocation.adapters import orm
+from allocation.service_layer import services, unit_of_work
 
-orm.start_mappers()
-get_session = sessionmaker(bind=create_engine(config.get_postgres_uri()))
 app = Flask(__name__)
+orm.start_mappers()
 
 
-def is_valid_sku(sku, batches):
-    return sku in {b.sku for b in batches}
-
-
-@app.route("/add_batch", methods=["POST"])
+@app.route("/add_batch", methods=['POST'])
 def add_batch():
-    session = get_session()
-    repo = repository.SqlAlchemyRepository(session)
-    eta = request.json.get("eta")
-
+    eta = request.json['eta']
     if eta is not None:
         eta = datetime.fromisoformat(eta).date()
-
     services.add_batch(
-        request.json.get("ref"),
-        request.json.get("sku"),
-        request.json.get("qty"),
-        eta,
-        repo,
-        session,
+        request.json['ref'], request.json['sku'], request.json['qty'], eta,
+        unit_of_work.SqlAlchemyUnitOfWork(),
     )
+    return 'OK', 201
 
-    return "OK", 201
 
-
-@app.route("/allocate", methods=["POST"])
+@app.route("/allocate", methods=['POST'])
 def allocate_endpoint():
-    session = get_session()
-    repo = repository.SqlAlchemyRepository(session)
-    line = model.OrderLine(
-        request.json.get("orderid"),
-        request.json.get("sku"),
-        request.json.get("qty"),
-    )
-
     try:
-        batchref = services.allocate(line, repo, session)
-    except (model.OutOfStock, services.InvalidSku) as e:
-        return {"message": str(e)}, 400
-
-    return {"batchref": batchref}, 201
-
-
-@app.route("/deallocate", methods=["POST"])
-def deallocate_endpoint():
-    session = get_session()
-    repo = repository.SqlAlchemyRepository(session)
-    line = model.OrderLine(request.json.get("orderid"), request.json.get("sku"))
-    batchref = request.json.get("batchref")
-
-    try:
-        batchref = services.deallocate(line, repo, session, batchref)
+        batchref = services.allocate(
+            request.json['orderid'],
+            request.json['sku'],
+            request.json['qty'],
+            unit_of_work.SqlAlchemyUnitOfWork(),
+        )
     except services.InvalidSku as e:
-        return {"ok": False, "message": str(e)}, 404
+        return jsonify({'message': str(e)}), 400
+
+    return jsonify({'batchref': batchref}), 201
