@@ -2,15 +2,12 @@ from typing import Set, Protocol
 from allocation.domain import model
 
 
-
 class AbstractRepository(Protocol):
-
     def add(self, product: model.Product):
         ...
 
     def get(self, sku) -> model.Product:
         ...
-
 
 
 class TrackingRepository:
@@ -31,9 +28,7 @@ class TrackingRepository:
         return product
 
 
-
 class SqlAlchemyRepository:
-
     def __init__(self, session):
         self.session = session
 
