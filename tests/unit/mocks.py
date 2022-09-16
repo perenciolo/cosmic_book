@@ -2,6 +2,8 @@ from allocation.adapters import repository
 from allocation.domain import events
 from allocation.service_layer import handlers, messagebus, unit_of_work
 
+from allocation.domain import commands
+
 
 class FakeRepository(repository.AbstractRepository):
     def __init__(self, products):
@@ -37,12 +39,15 @@ class FakeMessageBus(messagebus.AbstractMessageBus):
     def __init__(self, uow: unit_of_work.AbstractUnitOfWork):
         super(FakeMessageBus, self).__init__(uow)
         self.events_published = []
-        self.HANDLERS = {
-            events.BatchCreated: [self.mock_event_handler],
-            events.BatchQuantityChanged: [self.mock_event_handler],
+        self.EVENT_HANDLERS = {
             events.OutOfStock: [self.mock_event_handler],
-            events.AllocationRequired: [self.mock_event_handler],
-        }
+        }  # type: Dict[Type[events.Event], List[Callable]]
+
+        self.COMMAND_HANDLERS = {
+            commands.Allocate: self.mock_event_handler,
+            commands.CreateBatch: self.mock_event_handler,
+            commands.ChangeBatchQuantity: self.mock_event_handler,
+        }  # type: Dict[Type[commands.Command], Callable]
 
     def mock_event_handler(self, e, uow: unit_of_work.AbstractUnitOfWork):
         self.events_published.append(e)

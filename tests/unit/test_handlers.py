@@ -1,6 +1,6 @@
 from datetime import date
 
-from allocation.domain import events
+from allocation.domain import events, commands
 from allocation.service_layer.messagebus import MessageBus
 from tests.unit.mocks import FakeMessageBus, FakeUnitOfWork
 
@@ -9,7 +9,7 @@ class TestAddBatch:
     def test_add_batch_for_new_product(self):
         uow = FakeUnitOfWork()
         messagebus = MessageBus(uow)
-        messagebus.handle(events.BatchCreated("b1", "CRUNCHY-ARMCHAIR", 100, None))
+        messagebus.handle(commands.CreateBatch("b1", "CRUNCHY-ARMCHAIR", 100, None))
         assert uow.products.get("CRUNCHY-ARMCHAIR") is not None
         assert uow.committed
 
@@ -19,10 +19,10 @@ class TestAllocate:
         uow = FakeUnitOfWork()
         messagebus = MessageBus(uow)
         messagebus.handle(
-            events.BatchCreated("batch1", "COMPLICATED-LAMP", 100, None),
+            commands.CreateBatch("batch1", "COMPLICATED-LAMP", 100, None),
         )
         messagebus.handle(
-            events.AllocationRequired("o1", "COMPLICATED-LAMP", 10),
+            commands.Allocate("o1", "COMPLICATED-LAMP", 10),
         )
         batches = uow.products.get(sku="COMPLICATED-LAMP").batches
 
@@ -34,11 +34,11 @@ class TestChangeBatchQuantity:
     def test_changes_available_quantity(self):
         uow = FakeUnitOfWork()
         messagebus = MessageBus(uow)
-        messagebus.handle(events.BatchCreated("batch1", "ADORABLE-SETTEE", 100, None))
+        messagebus.handle(commands.CreateBatch("batch1", "ADORABLE-SETTEE", 100, None))
         [batch] = uow.products.get(sku="ADORABLE-SETTEE").batches
         assert batch.available_quantity == 100
 
-        messagebus.handle(events.BatchQuantityChanged("batch1", 50))
+        messagebus.handle(commands.ChangeBatchQuantity("batch1", 50))
 
         assert batch.available_quantity == 50
 
@@ -46,10 +46,10 @@ class TestChangeBatchQuantity:
     #     uow = FakeUnitOfWork()
     #     messagebus = MessageBus(uow)
     #     event_history = [
-    #         events.BatchCreated("batch1", "INDIFFERENT-TABLE", 50, None),
-    #         events.BatchCreated("batch2", "INDIFFERENT-TABLE", 50, date.today()),
-    #         events.AllocationRequired("order1", "INDIFFERENT-TABLE", 20),
-    #         events.AllocationRequired("order2", "INDIFFERENT-TABLE", 20),
+    #         commands.CreateBatch("batch1", "INDIFFERENT-TABLE", 50, None),
+    #         commands.CreateBatch("batch2", "INDIFFERENT-TABLE", 50, date.today()),
+    #         commands.Allocate("order1", "INDIFFERENT-TABLE", 20),
+    #         commands.Allocate("order2", "INDIFFERENT-TABLE", 20),
     #     ]
     #
     #     for e in event_history:
@@ -59,7 +59,7 @@ class TestChangeBatchQuantity:
     #     assert batch1.available_quantity == 10
     #     assert batch2.available_quantity == 50
     #
-    #     messagebus.handle(events.BatchQuantityChanged("batch1", 25))
+    #     messagebus.handle(commands.ChangeBatchQuantity("batch1", 25))
     #
     #     # order1 or order2 will be deallocated, so we'll have 25 - 20
     #     assert batch1.available_quantity == 5
@@ -71,17 +71,17 @@ class TestChangeBatchQuantity:
         messagebus = FakeMessageBus(uow)
         # test setup as before
         event_history = [
-            events.BatchCreated("batch1", "INDIFFERENT-TABLE", 50, None),
-            events.BatchCreated("batch2", "INDIFFERENT-TABLE", 50, date.today()),
-            events.AllocationRequired("order1", "INDIFFERENT-TABLE", 20),
-            events.AllocationRequired("order2", "INDIFFERENT-TABLE", 20),
+            commands.CreateBatch("batch1", "INDIFFERENT-TABLE", 50, None),
+            commands.CreateBatch("batch2", "INDIFFERENT-TABLE", 50, date.today()),
+            commands.Allocate("order1", "INDIFFERENT-TABLE", 20),
+            commands.Allocate("order2", "INDIFFERENT-TABLE", 20),
         ]
         [messagebus.handle(e) for e in event_history]
 
         assert messagebus.events_published == event_history
 
-        messagebus.handle(events.BatchQuantityChanged("batch1", 25))
+        messagebus.handle(commands.ChangeBatchQuantity("batch1", 25))
 
-        assert messagebus.events_published[-1] == events.BatchQuantityChanged(
+        assert messagebus.events_published[-1] == commands.ChangeBatchQuantity(
             "batch1", 25
         )
