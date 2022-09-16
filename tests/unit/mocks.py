@@ -1,10 +1,6 @@
-from typing import List
-from unittest import mock
-import pytest
 from allocation.adapters import repository
-from allocation.service_layer import unit_of_work
-
 from allocation.domain import events
+from allocation.service_layer import handlers, messagebus, unit_of_work
 
 
 class FakeRepository(repository.AbstractRepository):
@@ -37,12 +33,16 @@ class FakeUnitOfWork(unit_of_work.AbstractUnitOfWork):
         pass
 
 
-class FakeUnitOfWorkWithFakeMessageBus(FakeUnitOfWork):
-    def __init__(self):
-        super().__init__()
-        self.events_published = []  # type: List[events.Event]
+class FakeMessageBus(messagebus.AbstractMessageBus):
+    def __init__(self, uow: unit_of_work.AbstractUnitOfWork):
+        super(FakeMessageBus, self).__init__(uow)
+        self.events_published = []
+        self.HANDLERS = {
+            events.BatchCreated: [self.mock_event_handler],
+            events.BatchQuantityChanged: [self.mock_event_handler],
+            events.OutOfStock: [self.mock_event_handler],
+            events.AllocationRequired: [self.mock_event_handler],
+        }
 
-    def publish_events(self):
-        for product in self.products.seen:
-            while product.events:
-                self.events_published.append(product.events.pop(0))
+    def mock_event_handler(self, e, uow: unit_of_work.AbstractUnitOfWork):
+        self.events_published.append(e)
