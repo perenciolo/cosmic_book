@@ -45,25 +45,11 @@ def get_uow():
     )
 
 
-def test_add_batch_for_new_product():
-    uow = get_uow()
-    services.add_batch("b1", "CRUNCHY-ARMCHAIR", 100, None, uow)
-    assert uow.products.get("CRUNCHY-ARMCHAIR") is not None
-    assert uow.committed
-
-
 def test_add_batch_for_existing_product():
     uow = get_uow()
     services.add_batch("b1", "GARISH-RUG", 100, None, uow)
     services.add_batch("b2", "GARISH-RUG", 99, None, uow)
     assert "b2" in [b.reference for b in uow.products.get("GARISH-RUG").batches]
-
-
-def test_allocate_returns_allocation():
-    uow = get_uow()
-    services.add_batch("batch1", "COMPLICATED-LAMP", 100, None, uow)
-    result = services.allocate("o1", "COMPLICATED-LAMP", 10, uow)
-    assert result == "batch1"
 
 
 def test_allocate_errors_for_invalid_sku():

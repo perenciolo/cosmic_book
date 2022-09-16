@@ -3,7 +3,8 @@ from flask import Flask, jsonify, request
 
 from allocation.domain import model
 from allocation.adapters import orm
-from allocation.service_layer import services, unit_of_work
+from allocation.service_layer import services, unit_of_work, messagebus
+from allocation.domain import events
 
 app = Flask(__name__)
 orm.start_mappers()
@@ -26,14 +27,14 @@ def add_batch():
 
 @app.route("/allocate", methods=["POST"])
 def allocate_endpoint():
-    line = model.OrderLine(
-        request.json.get("orderid"),
-        request.json.get("sku"),
-        request.json.get("qty"),
-    )
     try:
-        uow = unit_of_work.SqlAlchemyUnitOfWork()
-        batchref = services.allocate(line, uow)
+        event = events.AllocationRequired(
+            request.json.get("orderid"),
+            request.json.get("sku"),
+            request.json.get("qty"),
+        )
+        results = messagebus.handle(event, unit_of_work.SqlAlchemyUnitOfWork())
+        batchref = results.pop(0)
     except (model.OutOfStock, services.InvalidSku) as e:
         return jsonify({"message": str(e)}), 400
 
